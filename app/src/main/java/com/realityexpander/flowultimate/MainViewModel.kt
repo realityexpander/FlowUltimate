@@ -4,11 +4,9 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.realityexpander.flowultimate.MainViewModel.Companion.outString
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import kotlin.system.measureTimeMillis
 
 class MainViewModel: ViewModel() {
 
@@ -76,6 +74,84 @@ class MainViewModel: ViewModel() {
         viewModelScope.launch {
             _sharedFlow.emit(999)
         }
+
+
+//        // Example of cancellation
+//        val job = GlobalScope.launch(Dispatchers.Default) {
+//            repeat(5) {
+//                println("JOB: Coroutines working...")
+//                delay(500L)
+//            }
+//        }
+//        GlobalScope.launch(Dispatchers.Default) {
+//            delay(1500)
+//            job.cancel()
+//            println("JOB: Thread continuing...")
+//        }
+//        println("JOB: after runblocking...")
+
+
+//        // Example of parallel requests (not recommended)
+//        val job = GlobalScope.launch(Dispatchers.Default) {
+//            var answer1 = ""
+//            var answer2 = ""
+//            val job1 = launch {
+//                delay(500L)
+//                answer1 = "Network call 1 result"
+//            }
+//            val job2 = launch {
+//                delay(500L)
+//                answer2 = "Network call 2 result"
+//            }
+//            job1.join()
+//            job2.join()
+//
+//            println("Answer1=$answer1, Answer2=$answer2")
+//        }
+
+        // Example of parallel coroutines using launch and async (returns a result)
+        fun networkCall(id: Int) = "Network result $id"
+        GlobalScope.launch(Dispatchers.Default) {
+            val time = measureTimeMillis {
+                val answer1 = async {
+                    delay(500L)
+                    networkCall(1)
+                }
+                val answer2 = async {
+                    delay(500L)
+                    networkCall(2)
+                }
+                println("ASYNC Answer1=${answer1.await()}, Answer2=${answer2.await()}")
+            }
+            println("ASYNC time = $time")
+        }
+
+        // Do it with Async only
+        GlobalScope.launch(Dispatchers.Default) {
+            val result = GlobalScope.async(Dispatchers.Default) {
+                var answer1: Deferred<String>
+                var answer2: Deferred<String>
+                var result = ""
+                val time = measureTimeMillis {
+                    answer1 = async {
+                        delay(500L)
+                        networkCall(3)
+                    }
+                    answer2 = async {
+                        delay(500L)
+                        networkCall(4)
+                    }
+                    result = "ASYNC Answer1=${answer1.await()}, Answer2=${answer2.await()}"
+                }
+                return@async "$result, time = $time"
+            }.await()
+
+            println(result)
+        }
+
+
+
+
 
     }
 
