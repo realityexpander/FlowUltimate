@@ -114,7 +114,7 @@ class MainViewModel: ViewModel() {
 
         // Example of parallel coroutines using launch and async (returns a result)
         fun networkCall(id: Int) = "Network result $id"
-        GlobalScope.launch(Dispatchers.Default) {
+        viewModelScope.launch(Dispatchers.Default) {
             val time = measureTimeMillis {
                 val answer1 = async {
                     delay(500L)
@@ -130,7 +130,7 @@ class MainViewModel: ViewModel() {
         }
 
         // Do it with Async only
-        GlobalScope.launch(Dispatchers.Default) {
+        viewModelScope.launch(Dispatchers.Default) {
             val result = GlobalScope.async(Dispatchers.Default) {
                 var answer1: Deferred<String>
                 var answer2: Deferred<String>
@@ -153,21 +153,23 @@ class MainViewModel: ViewModel() {
         }
 
 
-        GlobalScope.launch(Dispatchers.IO) {
+        viewModelScope.launch(Dispatchers.IO) {
             val success = awaitConnectVideo("http://www.video.com/id=12202")
+
             if(success) {
-                println("Video Connected")
+                println("VIDEO Video Connected")
             } else {
-                println("Problem connecting to video.")
+                println("VIDEO Problem connecting to video.")
             }
         }
 
-        GlobalScope.launch(Dispatchers.IO) {
-            val result = awaitConnectVideoResult("http://www.video.com/id=12202")
+        viewModelScope.launch(Dispatchers.IO) {
+            val result = awaitConnectVideoResult("http://www.video.com/id=54321")
+
             if(result.success) {
-                println("Video Connected")
+                println("VIDEO Video Connected")
             } else {
-                println("Problem connecting to video: ${result.error?.localizedMessage}")
+                println("VIDEO Problem connecting to video: ${result.error?.localizedMessage}")
             }
         }
 
@@ -178,14 +180,17 @@ class MainViewModel: ViewModel() {
     class VideoClient() {
         fun connect(url: String, connectionCallback: ConnectionCallback) {
             val error = true // simulate error
-            println("Connecting to: $url")
+            println("VIDEO Connecting to: $url")
 
             // ... attempt to connect to to video url ...
+            CoroutineScope(Dispatchers.IO).launch {
+                delay(500L)
 
-            if(!error) {
-                connectionCallback.onConnected()
-            } else {
-                connectionCallback.onError(RuntimeException("Error: Could not connect to $url"))
+                if (!error) {
+                    connectionCallback.onConnected(url)
+                } else {
+                    connectionCallback.onError(RuntimeException("VIDEO Error: Could not connect to $url"))
+                }
             }
 
         }
@@ -195,7 +200,7 @@ class MainViewModel: ViewModel() {
             fun onError(t: Throwable)
         }
 
-        class Result(val success: Boolean, val error: Throwable?, val streamId: String?)
+        class Result(val success: Boolean, val error: Throwable? = null, val streamId: String? = null)
     }
 
     suspend fun awaitConnectVideo(url: String): Boolean {
@@ -209,7 +214,7 @@ class MainViewModel: ViewModel() {
                     }
 
                     override fun onError(t: Throwable) {
-                        println("Error is ${t.localizedMessage}")
+                        println("VIDEO Error is ${t.localizedMessage}")
                         continuation.resume(false)
                         //continuation.resumeWithException(t)
                     }
@@ -225,7 +230,7 @@ class MainViewModel: ViewModel() {
             videoClient.connect ( url,
                 object : VideoClient.ConnectionCallback {
                     override fun onConnected(streamId: String?) {
-                        continuation.resume(VideoClient.Result(true, null, "123456"))
+                        continuation.resume(VideoClient.Result(true, streamId ="123456"))
                     }
 
                     override fun onError(t: Throwable) {
