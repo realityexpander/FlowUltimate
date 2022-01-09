@@ -6,6 +6,9 @@ import androidx.lifecycle.viewModelScope
 import com.realityexpander.flowultimate.MainViewModel.Companion.outString
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
+import kotlin.coroutines.suspendCoroutine
 import kotlin.system.measureTimeMillis
 
 class MainViewModel: ViewModel() {
@@ -150,9 +153,87 @@ class MainViewModel: ViewModel() {
         }
 
 
+        GlobalScope.launch(Dispatchers.IO) {
+            val success = awaitConnectVideo("http://www.video.com/id=12202")
+            if(success) {
+                println("Video Connected")
+            } else {
+                println("Problem connecting to video.")
+            }
+        }
+
+        GlobalScope.launch(Dispatchers.IO) {
+            val result = awaitConnectVideoResult("http://www.video.com/id=12202")
+            if(result.success) {
+                println("Video Connected")
+            } else {
+                println("Problem connecting to video: ${result.error?.localizedMessage}")
+            }
+        }
+
+    }
 
 
 
+    class VideoClient() {
+        fun connect(url: String, connectionCallback: ConnectionCallback) {
+            val error = true // simulate error
+            println("Connecting to: $url")
+
+            // ... attempt to connect to to video url ...
+
+            if(!error) {
+                connectionCallback.onConnected()
+            } else {
+                connectionCallback.onError(RuntimeException("Error: Could not connect to $url"))
+            }
+
+        }
+
+        interface ConnectionCallback {
+            fun onConnected(streamId: String? = null)
+            fun onError(t: Throwable)
+        }
+
+        class Result(val success: Boolean, val error: Throwable?, val streamId: String?)
+    }
+
+    suspend fun awaitConnectVideo(url: String): Boolean {
+        val videoClient = VideoClient()
+
+        return suspendCoroutine { continuation ->
+            videoClient.connect ( url,
+                object : VideoClient.ConnectionCallback {
+                    override fun onConnected(streamId: String?) {
+                        continuation.resume(true)
+                    }
+
+                    override fun onError(t: Throwable) {
+                        println("Error is ${t.localizedMessage}")
+                        continuation.resume(false)
+                        //continuation.resumeWithException(t)
+                    }
+                }
+            )
+        }
+    }
+
+    suspend fun awaitConnectVideoResult(url: String): VideoClient.Result {
+        val videoClient = VideoClient()
+
+        return suspendCoroutine { continuation ->
+            videoClient.connect ( url,
+                object : VideoClient.ConnectionCallback {
+                    override fun onConnected(streamId: String?) {
+                        continuation.resume(VideoClient.Result(true, null, "123456"))
+                    }
+
+                    override fun onError(t: Throwable) {
+                        continuation.resume(VideoClient.Result(false, t))
+                    }
+                }
+            )
+        }
     }
 
     fun incrementCounter() {
